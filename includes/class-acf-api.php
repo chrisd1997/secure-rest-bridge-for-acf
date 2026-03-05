@@ -177,7 +177,7 @@ if ( ! class_exists( 'ACF_REST_Bridge_ACF_API' ) ) {
 		}
 
 		public function filter_show_in_rest( &$data, $field, $field_objects ) {
-			if ( ! array_key_exists( $field, $field_objects ) || ! isset( $field_objects[ $field ]['show_in_rest'] ) || ! $field_objects[ $field ]['show_in_rest'] ) {
+			if ( array_key_exists( $field, $field_objects ) && isset( $field_objects[ $field ]['show_in_rest'] ) && ! $field_objects[ $field ]['show_in_rest'] ) {
 				unset( $data[ $field ] );
 			}
 		}

@@ -40,7 +40,7 @@ if ( ! class_exists( 'ACF_REST_Bridge' ) ) {
 		}
 
 		private static function dependencies_met() {
-			return class_exists( 'WP_REST_Controller' ) && class_exists( 'acf' );
+			return class_exists( 'WP_REST_Controller' ) && ( class_exists( 'acf' ) || function_exists( 'acf' ) );
 		}
 
 		private static function includes() {

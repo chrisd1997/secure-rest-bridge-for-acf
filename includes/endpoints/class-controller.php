@@ -49,6 +49,9 @@ if ( ! class_exists( 'ACF_REST_Bridge_Controller' ) ) {
 		}
 
 		public function register_field() {
+			global $wp_rest_additional_fields;
+			unset( $wp_rest_additional_fields[ $this->type ]['acf'] );
+
 			register_rest_field( $this->type, 'acf', array(
 				'get_callback' => array( $this, 'register_field_callback' ),
 				'schema'       => array(
@@ -60,7 +63,7 @@ if ( ! class_exists( 'ACF_REST_Bridge_Controller' ) ) {
 
 		public function register_field_callback( $data ) {
 			$fields = $this->acf->get_fields( $data );
-			return ! empty( $fields['acf'] ) ? $fields['acf'] : null;
+			return $fields['acf'];
 		}
 
 		public function register() {
