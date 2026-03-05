@@ -1,0 +1,123 @@
+<?php
+/**
+ * Plugin Name: ACF REST Bridge
+ * Description: Exposes Advanced Custom Fields in the WordPress REST API with proper access control.
+ * Author: Chris
+ * Version: 1.0.0
+ * Requires at least: 5.0
+ * Requires PHP: 7.4
+ * License: GPLv3 or later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ * Text Domain: acf-rest-bridge
+ *
+ * Based on ACF to REST API by Aires Goncalves (GPLv2).
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+define( 'ACF_REST_BRIDGE_VERSION', '1.0.0' );
+define( 'ACF_REST_BRIDGE_PATH', plugin_dir_path( __FILE__ ) );
+
+if ( ! class_exists( 'ACF_REST_Bridge' ) ) {
+
+	class ACF_REST_Bridge {
+
+		private static $instance = null;
+
+		public static function init() {
+			add_action( 'init', array( __CLASS__, 'load_textdomain' ) );
+
+			if ( ! self::dependencies_met() ) {
+				add_action( 'admin_notices', array( __CLASS__, 'missing_dependencies_notice' ) );
+				return;
+			}
+
+			self::includes();
+			self::hooks();
+		}
+
+		private static function dependencies_met() {
+			return class_exists( 'WP_REST_Controller' ) && class_exists( 'acf' );
+		}
+
+		private static function includes() {
+			require_once ACF_REST_BRIDGE_PATH . 'includes/class-acf-api.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/class-field-settings.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/endpoints/class-controller.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/endpoints/class-posts-controller.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/endpoints/class-terms-controller.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/endpoints/class-comments-controller.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/endpoints/class-attachments-controller.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/endpoints/class-options-controller.php';
+			require_once ACF_REST_BRIDGE_PATH . 'includes/endpoints/class-users-controller.php';
+		}
+
+		private static function hooks() {
+			$acf_version = get_option( 'acf_version' );
+			$hook = $acf_version >= '5.12' ? 'rest_pre_dispatch' : 'rest_api_init';
+
+			add_action( $hook, array( __CLASS__, 'create_rest_routes' ), 10 );
+			ACF_REST_Bridge_Field_Settings::hooks();
+		}
+
+		public static function create_rest_routes() {
+			foreach ( get_post_types( array( 'show_in_rest' => true ), 'objects' ) as $post_type ) {
+				if ( 'attachment' === $post_type->name ) {
+					$controller = new ACF_REST_Bridge_Attachments_Controller( $post_type );
+				} else {
+					$controller = new ACF_REST_Bridge_Posts_Controller( $post_type );
+				}
+				$controller->register();
+			}
+
+			foreach ( get_taxonomies( array( 'show_in_rest' => true ), 'objects' ) as $taxonomy ) {
+				$controller = new ACF_REST_Bridge_Terms_Controller( $taxonomy );
+				$controller->register();
+			}
+
+			$controller = new ACF_REST_Bridge_Comments_Controller();
+			$controller->register();
+
+			$controller = new ACF_REST_Bridge_Options_Controller();
+			$controller->register();
+
+			$controller = new ACF_REST_Bridge_Users_Controller();
+			$controller->register();
+		}
+
+		public static function load_textdomain() {
+			load_plugin_textdomain(
+				'acf-rest-bridge',
+				false,
+				dirname( plugin_basename( __FILE__ ) ) . '/languages'
+			);
+		}
+
+		public static function missing_dependencies_notice() {
+			$missing = array();
+
+			if ( ! class_exists( 'WP_REST_Controller' ) ) {
+				$missing[] = 'WordPress REST API';
+			}
+
+			if ( ! class_exists( 'acf' ) ) {
+				$missing[] = 'Advanced Custom Fields';
+			}
+
+			if ( ! empty( $missing ) ) {
+				printf(
+					'<div class="notice notice-error"><p>%s</p></div>',
+					sprintf(
+						/* translators: %s: comma-separated list of missing plugins */
+						esc_html__( 'ACF REST Bridge requires the following plugins to be active: %s', 'acf-rest-bridge' ),
+						esc_html( implode( ', ', $missing ) )
+					)
+				);
+			}
+		}
+	}
+
+	add_action( 'plugins_loaded', array( 'ACF_REST_Bridge', 'init' ) );
+}
